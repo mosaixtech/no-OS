@@ -393,7 +393,7 @@ int tcpip_read_wait(int *instance_id, size_t len)
 void tcpip_write_data(int instance_id, const char *buf, size_t len)
 {
 	struct network_instance *instance = NULL;
-	u8_t apiflags = 0;
+	u8_t apiflags = TCP_WRITE_FLAG_COPY;
 	const char *pbuffer = buf;
 	HASH_FIND_INT( instances, &instance_id, instance);
 	if(instance == NULL)
