@@ -112,7 +112,7 @@ static char buffer[BUFFERL_LENGTH];
 static char *pnext = buffer;
 static char *pcurr = buffer;
 
-int serial_read_line(char *buf)
+int serial_read_line(int *instance_id, char *buf)
 {
 	if(pcurr == buffer) { // trigger a new receive
 		XUartPs_Recv(&UartPs, (u8*)pcurr, BUFFERL_LENGTH);
@@ -138,10 +138,10 @@ int serial_read_line(char *buf)
 		pcurr = buffer;
 		TotalReceivedCount = 0;
 	}
-	return strlen(pcurr);
+	return cmd_length;
 }
 
-int serial_read(char *buf, size_t len)
+int serial_read(int *instance_id, char *buf, size_t len)
 {
 	size_t receive_len = len;
 	if(TotalReceivedCount) {
@@ -169,30 +169,24 @@ int serial_read(char *buf, size_t len)
 	return TotalReceivedCount + receive_len;
 }
 
-int serial_read_line1(char *buf)
-{
-	int i = 0;
-	do {
-		buf[i] = inbyte();
-		i++;
-	} while(buf[i - 1] != '\n');
-	buf[i - 2] = '\0';
-	buf[i - 1] = '\0';
-	return i;
-}
-
-int serial_read_nonblocking(char *buf, size_t len)
+int serial_read_nonblocking(int *instance_id, char *buf, size_t len)
 {
 	XUartPs_Recv(&UartPs, (u8*)buf, len);
 	return 0;
 }
 
-int serial_read_wait(size_t len)
+int serial_read_wait(int *instance_id, size_t len)
 {
 	do {
 	} while(!bytes_received_timeout && len != TotalReceivedCount);
 	bytes_received_timeout = false;
 	return TotalReceivedCount;
+}
+
+void serial_write_data(int instance_id, const char *buf, size_t len)
+{
+	for ( int i = 0; i < len; i++)
+		outbyte(buf[i]);
 }
 
 int init_uart(void)

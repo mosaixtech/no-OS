@@ -17,6 +17,7 @@
 
 #include "ad9361_parameters.h"
 #include <errno.h>
+#include <network.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -50,59 +51,6 @@ static const char * const ad9361_rf_tx_port[] =
 {"A", "B"};
 static const char * const ad9361_calib_mode[] =
 {"auto", "manual", "tx_quad", "rf_dc_offs", "rssi_gain_step"};
-
-/**
- * Read char array terminated with "\r\n"
- * @param *buf pointer to string
- * @return length of string
- */
-static int read_line(char *buf)
-{
-	return serial_read_line(buf);
-}
-
-/**
- * Read "len" number of characters
- * @param *buf pointer to string
- * @param len length of string
- * @return length of string
- */
-static int read(char *buf, size_t len)
-{
-	return serial_read(buf, len);
-}
-
-/**
- * Read "len" number of characters non bloking
- * @param *buf pointer to string
- * @param len length of string
- * @return length of string
- */
-static int read_nonbloking(char *buf, size_t len)
-{
-	return serial_read_nonblocking(buf, len);
-}
-
-/**
- * Wait until read is finished, "len" number of characters are read
- * @param len length of string
- * @return length of string
- */
-static int read_wait(size_t len)
-{
-	return serial_read_wait(len);
-}
-
-/**
- * Write "len" number of characters
- * @param *buf pointer to string
- * @param len length of string
- */
-static void write_data(const char *buf, size_t len)
-{
-	for ( int i = 0; i < len; i++)
-		outbyte(buf[i]);
-}
 
 /**
  * Compare two strings
@@ -562,8 +510,8 @@ static struct attrtibute_map global_read_attrtibute_map[] = {
 	{"trx_rate_governor", get_trx_rate_governor},
 	{"calib_mode_available", get_calib_mode_available},
 	{"xo_correction_available", get_xo_correction_available},
-	{"get_gain_table_config", get_gain_table_config},
-	{"get_dcxo_tune_fine", get_dcxo_tune_fine},
+	{"gain_table_config", get_gain_table_config},
+	{"dcxo_tune_fine", get_dcxo_tune_fine},
 	{"dcxo_tune_fine_available", get_dcxo_tune_fine_available},
 	{"ensm_mode_available", get_ensm_mode_available},
 	{"multichip_sync", get_multichip_sync},
@@ -2533,7 +2481,7 @@ static ssize_t ch_write_attr(const char *device, const char *channel,
 						&channel_info);
 			}
 			if(strequal(attr, "")) {
-				return read_all_attr((char*)buf, len, &channel_info,
+				return write_all_attr((char*)buf, len, &channel_info,
 						     dds_voltage_write_attrtibute_map, ARRAY_SIZE(dds_voltage_write_attrtibute_map));
 			}
 		} else if(NULL != strstr(channel, "altvoltage")) {
@@ -2548,7 +2496,7 @@ static ssize_t ch_write_attr(const char *device, const char *channel,
 						&channel_info);
 			}
 			if(strequal(attr, "")) {
-				return read_all_attr((char*)buf, len, &channel_info,
+				return write_all_attr((char*)buf, len, &channel_info,
 						     dds_altvoltage_write_attrtibute_map,
 						     ARRAY_SIZE(dds_altvoltage_write_attrtibute_map));
 			}
@@ -2567,7 +2515,7 @@ static ssize_t ch_write_attr(const char *device, const char *channel,
 						&channel_info);
 			}
 			if(strequal(attr, "")) {
-				return read_all_attr((char*)buf, len, &channel_info,
+				return write_all_attr((char*)buf, len, &channel_info,
 						     cf_voltage_write_attrtibute_map, ARRAY_SIZE(cf_voltage_write_attrtibute_map));
 			}
 		}
@@ -2659,12 +2607,22 @@ static ssize_t read_dev(const char *device, char **pbuf, size_t bytes_count)
 
 const struct tinyiiod_ops ops = {
 	//communication
-	.read = read,
-	.read_line = read_line,
-	.read_nonbloking = read_nonbloking,
-	.read_wait = read_wait,
-	.write = write_data,
+#ifdef UART_INTERFACE
+	.read = serial_read,
+	.read_line = serial_read_line,
+	.read_nonbloking = serial_read_nonblocking,
+	.read_wait = serial_read_wait,
+	.write = serial_write_data,
+#endif // UART_INTERFACE
 
+#ifdef TCPIP_INTERFACE
+	.read = tcpip_read,
+	.read_line = tcpip_read_line,
+	.read_nonbloking = tcpip_read_nonblocking,
+	.read_wait = tcpip_read_wait,
+	.write = tcpip_write_data,
+	.exit = tcpip_exit,
+#endif // TCPIP_INTERFACE
 	//device operations
 	.read_attr = read_attr,
 	.write_attr = write_attr,

@@ -56,7 +56,12 @@
 #include "axi_dmac.h"
 #endif
 #ifdef USE_LIBIIO
+#ifdef UART_INTERFACE
 #include "serial.h"
+#endif // UART_INTERFACE
+#ifdef TCPIP_INTERFACE
+#include "lwip_init.h"
+#endif // TCPIP_INTERFACE
 #include "tinyiiod.h"
 #include "tinyiiod_user.h"
 #endif // USE_LIBIIO
@@ -551,14 +556,25 @@ int main(void)
 #endif
 
 #ifdef USE_LIBIIO
-	init_uart();
 	/* Create the tinyiiod */
 	iiod = tinyiiod_create(xml, &ops);
 
+#ifdef UART_INTERFACE
+	init_uart();
 	while(1) {
 		tinyiiod_read_command(iiod);
 	}
-#endif
+#endif // UART_INTERFACE
+
+#ifdef TCPIP_INTERFACE
+	init_lwip();
+	while(1) {
+		lwip_keep_alive();
+		tinyiiod_read_command(iiod);
+	}
+#endif // TCPIP_INTERFACE
+
+#endif // USE_LIBIIO
 
 #ifdef CONSOLE_COMMANDS
 	get_help(NULL, 0);

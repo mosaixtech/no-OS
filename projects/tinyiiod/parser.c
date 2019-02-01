@@ -157,41 +157,40 @@ int tinyiiod_parse_string(struct tinyiiod *iiod, char *str)
 	if (str[0] == '\0')
 		return 0;
 
-	if (!strncmp(str, "VERSION", sizeof("VERSION"))) {
+	if (!strncmp(str, "VERSION", sizeof("VERSION") - 1)) {
 		char buf[32];
 
 		snprintf(buf, sizeof(buf), "%u.%u.%-7.7s\n",
-			 TINYIIOD_VERSION_MAJOR,
+		  	 TINYIIOD_VERSION_MAJOR,
 			 TINYIIOD_VERSION_MINOR,
 			 TINYIIOD_VERSION_GIT);
 		tinyiiod_write_string(iiod, buf);
 		return 0;
-	}
-
-	if (!strncmp(str, "PRINT", sizeof("PRINT") - 1)) {
+	} else if (!strncmp(str, "PRINT", sizeof("PRINT") - 1)) {
 		tinyiiod_write_xml(iiod);
 		return 0;
-	}
-
-	if (!strncmp(str, "READ ", sizeof("READ ") - 1))
+	} else if (!strncmp(str, "READ ", sizeof("READ ") - 1)) {
 		return parse_rw_string(iiod, str + sizeof("READ ") - 1, false);
-
-	if (!strncmp(str, "WRITE ", sizeof("WRITE ") -1))
+	} else if (!strncmp(str, "WRITE ", sizeof("WRITE ") -1)) {
 		return parse_rw_string(iiod, str + sizeof("WRITE ") - 1, true);
-
-	if (!strncmp(str, "OPEN ", sizeof("OPEN ") -1))
+	} else if (!strncmp(str, "OPEN ", sizeof("OPEN ") -1)) {
 		return parse_open_string(iiod, str + sizeof("OPEN ") - 1);
-
-	if (!strncmp(str, "CLOSE ", sizeof("CLOSE ") -1)) {
+	} else if (!strncmp(str, "CLOSE ", sizeof("CLOSE ") -1)) {
 		tinyiiod_do_close(iiod, str + sizeof("CLOSE ") - 1);
 		return 0;
-	}
-
-	if (!strncmp(str, "READBUF ", sizeof("READBUF ") -1))
+	} else if (!strncmp(str, "READBUF ", sizeof("READBUF ") -1)) {
 		return parse_readbuf_string(iiod, str + sizeof("READBUF ") - 1);
-	if (!strncmp(str, "WRITEBUF ", sizeof("WRITEBUF ") -1))
+	} else if (!strncmp(str, "WRITEBUF ", sizeof("WRITEBUF ") -1)) {
 		return parse_writebuf_string(iiod, str + sizeof("WRITEBUF ") - 1);
-
-
+	} else if (!strncmp(str, "EXIT", sizeof("EXIT") - 1)) {
+		return tinyiiod_do_exit(iiod);
+	} else if (!strncmp(str, "TIMEOUT", sizeof("TIMEOUT") - 1)) {
+		// todo
+		tinyiiod_write_value(iiod, 0);
+		return 0;
+	} else if (!strncmp(str, "GETTRIG", sizeof("GETTRIG") - 1)) {
+		tinyiiod_write_value(iiod, -ENODEV);
+		return 0;
+	}
 	return -EINVAL;
 }

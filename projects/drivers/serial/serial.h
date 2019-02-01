@@ -40,13 +40,15 @@
 #ifndef SRC_SERIAL_H_
 #define SRC_SERIAL_H_
 
-int serial_read_line(char *buf);
+int serial_read_line(int *instance_id, char *buf);
 
-int serial_read(char *buf, size_t len);
+int serial_read(int *instance_id, char *buf, size_t len);
 
-int serial_read_nonblocking(char *buf, size_t len);
+int serial_read_nonblocking(int *instance_id, char *buf, size_t len);
 
-int serial_read_wait(size_t len);
+int serial_read_wait(int *instance_id, size_t len);
+
+void serial_write_data(int instance_id, const char *buf, size_t len);
 
 int init_uart(void);
 

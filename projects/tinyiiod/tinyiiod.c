@@ -22,6 +22,7 @@
 #include <string.h>
 
 struct tinyiiod {
+	int instance_id;
 	const char *xml;
 	const struct tinyiiod_ops *ops;
 };
@@ -52,6 +53,9 @@ int tinyiiod_read_command(struct tinyiiod *iiod)
 	int ret;
 	memset(buf, 0, sizeof(buf));
 	ret = tinyiiod_read_line(iiod, buf);
+	if(ret == 0)
+		return ret;
+
 	if (ret < 0)
 		tinyiiod_write_value(iiod, ret);
 
@@ -69,32 +73,32 @@ char tinyiiod_read_char(struct tinyiiod *iiod)
 
 int tinyiiod_read(struct tinyiiod *iiod, char *buf, size_t len)
 {
-	return iiod->ops->read(buf, len);
+	return iiod->ops->read(&iiod->instance_id, buf, len);
 }
 
 int tinyiiod_read_line(struct tinyiiod *iiod, char *buf)
 {
-	return iiod->ops->read_line(buf);
+	return iiod->ops->read_line(&iiod->instance_id, buf);
 }
 
 int tinyiiod_read_nonblocking(struct tinyiiod *iiod, char *buf, size_t len)
 {
-	return iiod->ops->read_nonbloking(buf, len);
+	return iiod->ops->read_nonbloking(&iiod->instance_id, buf, len);
 }
 
 int tinyiiod_read_wait(struct tinyiiod *iiod, size_t len)
 {
-	return iiod->ops->read_wait(len);
+	return iiod->ops->read_wait(&iiod->instance_id, len);
 }
 
 void tinyiiod_write_char(struct tinyiiod *iiod, char c)
 {
-	iiod->ops->write(&c, 1);
+	iiod->ops->write(iiod->instance_id, &c, 1);
 }
 
 void tinyiiod_write(struct tinyiiod *iiod, const char *data, size_t len)
 {
-	iiod->ops->write(data, len);
+	iiod->ops->write(iiod->instance_id, data, len);
 }
 
 void tinyiiod_write_string(struct tinyiiod *iiod, const char *str)
@@ -106,14 +110,13 @@ void tinyiiod_write_value(struct tinyiiod *iiod, int value)
 {
 	char buf[16];
 
-	snprintf(buf, sizeof(buf), "%i\r\n", value);
+	snprintf(buf, sizeof(buf), "%i\n", value);
 	tinyiiod_write_string(iiod, buf);
 }
 
 void tinyiiod_write_xml(struct tinyiiod *iiod)
 {
 	size_t len = strlen(iiod->xml);
-
 	tinyiiod_write_value(iiod, len);
 	tinyiiod_write(iiod, iiod->xml, len);
 	tinyiiod_write_char(iiod, '\n');
@@ -123,20 +126,20 @@ void tinyiiod_do_read_attr(struct tinyiiod *iiod, const char *device,
 			   const char *channel, bool ch_out, const char *attr, bool debug)
 {
 	char buf[0x10000];
-	ssize_t ret;
-
-	if (channel)
-		ret = iiod->ops->ch_read_attr(device, channel,
-					      ch_out, attr, buf, sizeof(buf));
-	else
-		ret = iiod->ops->read_attr(device, attr,
-					   buf, sizeof(buf), debug);
-
+	ssize_t ret = -ENODEV;
+	if(debug == 0)
+	{
+		if (channel)
+			ret = iiod->ops->ch_read_attr(device, channel,
+							  ch_out, attr, buf, sizeof(buf));
+		else
+			ret = iiod->ops->read_attr(device, attr,
+						   buf, sizeof(buf), debug);
+	}
 	tinyiiod_write_value(iiod, (int) ret);
 	if (ret > 0) {
-		tinyiiod_write(iiod, buf, (size_t) ret);
-		tinyiiod_write_char(iiod, '\r');
-		tinyiiod_write_char(iiod, '\n');
+		buf[ret] = '\n';
+		tinyiiod_write(iiod, buf, (size_t) ret + 1);
 	}
 }
 
@@ -176,6 +179,11 @@ void tinyiiod_do_close(struct tinyiiod *iiod, const char *device)
 {
 	int ret = iiod->ops->close(device);
 	tinyiiod_write_value(iiod, ret);
+}
+
+int tinyiiod_do_exit(struct tinyiiod *iiod)
+{
+	return iiod->ops->exit(iiod->instance_id);
 }
 
 int tinyiiod_do_writebuf(struct tinyiiod *iiod,
